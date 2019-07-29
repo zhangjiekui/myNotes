@@ -41,7 +41,8 @@ class Lin(Module):
     def forward(self,inp):return inp@self.w+self.b
     def bwd(self,out,inp):
         inp.g=out.g@self.w.t()
-        self.w.g=torch.einsum('bi,bj->ij',inp,out.g)
+        # self.w.g=torch.einsum('bi,bj->ij',inp,out.g)
+        self.w.g=inp.t()@out.g
         self.b.g=out.g.sum(0)
 class Mse(Module):
     def forward(self,inp,target):return (inp.squeeze() - target).pow(2).mean()
