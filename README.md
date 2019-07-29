@@ -1,6 +1,7 @@
 # myNotes —— 记录一些常用的代码、资料啥的
 
 ## In PyTorch, F.log_softmax and F.nll_loss are combined in one optimized function, F.cross_entropy.
+F.nll_loss(F.log_softmax(pred, -1), y_train) = F.cross_entropy(pred, y_train)
 
 ## Fastai courses
 ### A Code-First Introduction to Natural Language Processing
