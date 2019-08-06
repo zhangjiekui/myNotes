@@ -1,0 +1,65 @@
+torch.set_printoptions(precision=4,sci_mode=False)
+# for l in model.layers:
+#     for p in l.parameters():
+# #         print(p.shape)
+# #         print(len(p.shape))
+#         value=p[0,0:5] if len(p.shape)>1 else p[0:5]
+#         print(f"{len(p.shape)}:{value.data} ")
+
+class Model(nn.Module):
+    def __init__(self,n_in,nh,n_out):
+        super().__init__()
+        self.layers=[nn.Linear(n_in,nh),nn.ReLU(),nn.Linear(nh,n_out)]
+    def __call__(self, x):
+        for l in self.layers:
+            x=l(x)
+        return x
+model=Model(m,nh,c) #重新生成Model
+
+
+epochs=1
+bs=64
+for epoch in range(epochs):
+    for i in range(batches):
+        #set_trace()
+        start_i=i*bs
+        end_i=start_i+bs
+        xb=x_train[start_i:end_i]
+        yb=y_train[start_i:end_i]
+        out=model(xb)
+        loss=loss_func(out,yb)
+        print(f"loop p:batchs[{i+1}]-->loss={loss}")
+
+        loss.backward()
+        with torch.no_grad():
+            for l in model.layers:
+#                 print(f"----{type(l)}")
+                for p in l.parameters():
+#                     print(f"----{type(l)}:p.grad.data.sum={p.grad.data.sum()}")
+#                     if i==10:
+#                         print(f"{type(l).__name__},p.shape={p.shape},p.grad.shape={p.grad.shape}")
+#                         print("---"*30)
+#                         print("---"*30)
+#                         if len(p.grad.shape)>1:
+#                             print(f"权重前：p[0,0:5]={p[0,0:5]},\n权重前：p.grad[0,0:5]={p.grad[0,0:5]}")
+#                         else:
+#                             print(f"截距前：p[0:5]={p[:5]},\n截距前：p.grad[0:5]={p.grad[:5]}")
+#                         print("---"*30)
+                    p.sub_(p.grad*lr)
+                    
+#                     if i==10:                        
+#                         if len(p.grad.shape)>1:
+#                             print(f"权重后：p[0,0:5]={p[0,0:5]},\n权重后：p.grad[0,0:5]={p.grad[0,0:5]}")
+#                         else:
+#                             print(f"截距后：p[0:5]={p[:5]},\n截距后：p.grad[0:5]={p.grad[:5]}")
+#                         print("---"*30)
+#                         print("---"*30)
+                    p.grad.zero_()
+            # for l in model.layers:
+            #     if hasattr(l,'weight'):
+            #         #l.weight-=l.weight.grad*lr
+            #         l.weight.sub_(l.weight.grad*lr)
+            #         #l.bias-=l.bias*lr
+            #         l.bias.sub_(l.bias.grad*lr)
+            #         l.weight.grad.zero_()
+            #         l.bias.grad.zero_()
