@@ -1,0 +1,43 @@
+{
+    "snippets" : [
+        {
+            
+            "name" : "FirstLoad",
+            "code" : [
+                 "%load_ext autoreload",
+                 "%autoreload 2",
+
+                 "%matplotlib inline",
+                 
+                 "import torch",
+                 "torch.Tensor.ndim = property(lambda x: len(x.shape))",
+                 "torch.set_printoptions(linewidth=300,precision=4,sci_mode=False)"
+            ]
+        },
+        {
+            
+            "name" : "memo",
+            "code" : [
+                "# This is an example snippet!",
+                "# To create your own, add a new snippet block to the",
+                "# snippets.json file in your jupyter nbextensions directory:",
+                "# /nbextensions/snippets/snippets.json",
+                "import this"
+            ]
+         },
+            
+            
+         {   
+            "name" : "example",
+            "code" : [
+                "# This is an example snippet!",
+                "# To create your own, add a new snippet block to the",
+                "# snippets.json file in your jupyter nbextensions directory:",
+                "# /nbextensions/snippets/snippets.json",
+                "import this"
+            ]
+         }
+       ]
+     }
+
+
