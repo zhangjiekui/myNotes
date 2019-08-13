@@ -133,6 +133,14 @@ class Runner():
             cb = cbf()
             cbs.append(cb)
         self.stop, self.cbs = False, [TrainEvalCallback()] + cbs
+
+        # 从fit()方法中挪到这里来，或许更好 ，可以保证从一开始就可以调用       
+#              for cb in self.cbs:
+#                 cb.set_runner(self)
+#                 # setattr(x, 'foobar', 123) --> x.foobar = 123
+#                 # setattr(self, cb.name, cb) --> run.callback_name=callback_name()
+#                 setattr(self, cb.name, cb)  # todo 更改了位置，在此一次性注册所有的cb的属性
+        
         self.hooks=ModelTrainingHooks()
 
         if learn is None:
