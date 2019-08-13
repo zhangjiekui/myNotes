@@ -64,10 +64,11 @@ def camel2snake(name):
     return re.sub(_camel_re2, r'\1_\2', s1).lower()
 
 class Callback():
-    _order=0
-    hooks=ModelTrainingHooks()
-    # def __init__(self):
-    #     self.hooks=
+    _order = 0
+    # 在其他地方可以使用：Callback.hooks.after_fit来调用，方便做提醒用
+    hooks = ModelTrainingHooks()
+
+
     def set_runner(self, run): self.run=run
     # 如果Callback类本身没有k属性，就去Runner类里去找
     # 所以效果就是callback.attribute--->callback.attribute or runner.attribute
@@ -77,6 +78,7 @@ class Callback():
         name = re.sub(r'Callback$', '', self.__class__.__name__)
         return camel2snake(name or 'callback')
 
+print("Callback.hooks.after_fit",Callback.hooks.after_fit)
 
 class TrainEvalCallback(Callback):
     # callback.set_runner(self, run): self.run=run
@@ -91,6 +93,7 @@ class TrainEvalCallback(Callback):
         self.run.n_epochs += 1. / (self.run.iters)
         self.run.n_iter += 1
 
+
     def begin_epoch(self):
         self.run.n_epochs = self.epoch
         self.run.model.train()
@@ -99,6 +102,13 @@ class TrainEvalCallback(Callback):
     def begin_validate(self):
         self.model.eval()
         self.run.in_train = False
+
+
+
+
+
+
+
 
 
 
@@ -214,6 +224,10 @@ class Runner():
         return False
 
 class TestCallback(Callback):
+    _order = 1
+    print("TestCallback(Callback)",Callback.hooks.after_fit)
+
+
     def __init__(self,batch_max_iter:int=0,all_max_iter=0):
         self.batch_max_iter=batch_max_iter
         self.all_max_iter = all_max_iter
@@ -290,7 +304,7 @@ class Recorder(Callback):
 
 
 class ParamScheduler(Callback):
-    _order = 1
+    _order = 2
 
     def __init__(self, pname, sched_func):
         self.pname, self.sched_func = pname, sched_func
@@ -301,6 +315,7 @@ class ParamScheduler(Callback):
 
     def begin_batch(self):
         if self.in_train: self.set_param()
+
 
 from functools import partial
 def annealer(f):
