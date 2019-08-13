@@ -194,7 +194,15 @@ class Runner():
         try:
             for cb in self.cbs:
                 cb.set_runner(self)
+                # setattr(x, 'foobar', 123) --> x.foobar = 123
+                # setattr(self, cb.name, cb) --> run.callback_name=callback_name()
                 setattr(self, cb.name, cb)  # todo 更改了位置，在此一次性注册所有的cb的属性
+            # 所有的callback对象，通过上面的语句，可以使用self.callback_name or run.callback_name来调用
+            # 所有的callback对象中的方法，通过下面的def __call__(self, cb_name)方法，如self("begin_fit")来依次链式调用
+
+            # 另外，在CallBack类中，def __getattr__(self, k): return getattr(self.run, k)，会把查找获取属性代理给run
+            # 因此，callback对象就可以直接调用run中的属性和方法，如cb.fit（）, cb.data等
+
             # if self('begin_fit'): return
             if self(self.hooks.begin_fit): return
             for epoch in range(epochs):
