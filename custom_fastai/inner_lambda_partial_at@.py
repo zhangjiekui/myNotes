@@ -1,6 +1,7 @@
 # 业务需要两个甚至多个参数，但函数定义只接受一个参数
 
 # 函数定义只接受一个参数
+from time import sleep
 def slow_calculation(cb=None):
     res = 0
     for i in range(5):
