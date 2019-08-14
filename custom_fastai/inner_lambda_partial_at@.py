@@ -37,3 +37,17 @@ _inner_lamfunc=lam_show_progress("使用lambda函数：")
 slow_calculation(_partial_func)
 slow_calculation(_inner_func)
 slow_calculation(_inner_lamfunc)
+
+# 使用@函数方式：
+def show_epochs(f):
+    def _inner(epoch): return partial(f, epoch)
+    return _inner
+
+@show_epochs
+def show_progress(exclamation:str,epoch):  #exclamation:感叹语
+    print(f" {exclamation}{epoch}")
+    
+f=show_progress("使用@函数方式：")
+f(3)
+print(f,f(3))
+slow_calculation(f)
