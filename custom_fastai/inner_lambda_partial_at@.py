@@ -52,3 +52,7 @@ f=show_progress("使用@函数方式：")
 f(3)
 print(f,f(3))
 slow_calculation(f)
+
+f2=show_progress("使用@函数方式 2 ：")
+slow_calculation(f2)
+
