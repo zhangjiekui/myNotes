@@ -93,10 +93,14 @@ slow_calculation(f2)
 
 class ProgressShowingCallback():
     def __init__(self, exclamation="Awesome"): self.exclamation = exclamation
-    def __call__(self, epoch): print(f"{self.exclamation}! We've finished epoch {epoch}!")
+    def __call__(self, epoch): print(f"{self.exclamation}!  __call__ We've finished epoch {epoch}!")
+    def f(self, epoch): print(f"{self.exclamation}! f() We've finished epoch {epoch}!")
 
 cb = ProgressShowingCallback("使用class方式:")
+print("----callback---------")
 slow_calculation(cb)
+slow_calculation(cb.f)
+print("----callback---------")
 
 if __name__ == '__main__':
     print("----main()---------")
