@@ -1,0 +1,22 @@
+class with_enter_exit():
+    def __enter__(self):
+        print("In__enter__()")
+        return self
+    def __exit__(self, type, value, trace):
+        print("In__exit__()")
+        print(f"    self:{self}")
+        print(f"    type:{type}")
+        print(f"    value:{value}")
+        print(f"    trace:{trace}")
+        print("exit In__exit__()")
+    def do_dumb_thing(self):
+        bar=1
+        return bar+10
+        
+def get_sample():
+    return with_enter_exit()
+    
+with get_sample() as sample:
+    print("In with block......")
+    print("    ",sample)
+    sample.do_dumb_thing()
