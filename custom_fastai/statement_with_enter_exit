@@ -10,7 +10,8 @@ class with_enter_exit():
         print(f"    trace:{trace}")
         print("exit In__exit__()")
     def do_dumb_thing(self):
-        bar=1
+        bar=1/0
+        #bar=1 #试着执行两种，查看结果差异
         return bar+10
         
 def get_sample():
