@@ -61,13 +61,14 @@ def rnn(inputs, hidden_states, params):
         print(f"loops  {i} times \n")
         i+=1
         H = mxnp.dot(X, W_xh) + mxnp.dot(H, W_hh) + b_h
+        H = mxnp.tanh(H)
+        hidden_states.append(H)
 
         print(f"---rnn input(X,H) and weights' shape---------\n"
               f"   ---X.shape={X.shape},W_xh.shape={W_xh.shape}\n"
               f"   ---H.shape={H.shape},W_hh.shape={W_hh.shape},b_h.shape={b_h.shape}\n"
               f"   ---W_ho.shape={W_ho.shape},b_o.shape={b_o.shape}\n")
-        H = mxnp.tanh(H)
-        hidden_states.append(H)
+
         Y = mxnp.dot(H, W_ho) + b_o
         outputs.append(Y)
         print(f"---rnn output's shape---------\n"
