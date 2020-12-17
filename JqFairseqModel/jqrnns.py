@@ -5,6 +5,7 @@
 # Project: fairseq_code_analysis
 # IDE:PyCharm
 
+# /home/zjk/fairseq_code_analysis/mycode/data/data-bin/tokenized.zh-en -a lstm2b --fp16 --clip-norm 1.0 --lr 0.001 --optimizer adam -s zh -t en --dropout 0.3 --max-tokens 2048 --criterion label_smoothed_cross_entropy --num-workers 8 --reset-optimizer --save-dir /home/zjk/fairseq_code_analysis/mycode/model/lstm2b --no-epoch-checkpoints --tensorboard-logdir /home/zjk/fairseq_code_analysis/mycode/model/logs
 
 import torch
 from torch import Tensor
