@@ -378,7 +378,7 @@ class RNNEncoder(FairseqEncoder):
             (
                 encoder_out[0].index_select(1, new_order),
                 encoder_out[1].index_select(1, new_order),
-                encoder_out[2].index_select(1, new_order),
+                encoder_out[2] if encoder_out[2] is None else encoder_out[2].index_select(1, new_order),
                 encoder_out[3].index_select(1, new_order),
             )
         )
@@ -650,6 +650,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
         assert prev_hiddens_ is not None
         prev_hiddens = [prev_hiddens_[i] for i in range(self.num_layers)]
 
+        prev_cells=None
         prev_cells_ = cached_state["prev_cells"]
         if self.rnn_type == 'lstm':
             assert prev_cells_ is not None
@@ -668,14 +669,14 @@ class RNNDecoder(FairseqIncrementalDecoder):
             return
         prev_hiddens, prev_cells, input_feed = self.get_cached_state(incremental_state)
         prev_hiddens = [p.index_select(0, new_order) for p in prev_hiddens]
-        prev_cells = [p.index_select(0, new_order) for p in prev_cells]
+        prev_cells = prev_cells if prev_cells is None else [p.index_select(0, new_order) for p in prev_cells]
         if input_feed is not None:
             input_feed = input_feed.index_select(0, new_order)
         cached_state_new = torch.jit.annotate(
             Dict[str, Optional[Tensor]],
             {
                 "prev_hiddens": torch.stack(prev_hiddens),
-                "prev_cells": torch.stack(prev_cells),
+                "prev_cells": prev_cells if prev_cells is None else torch.stack(prev_cells),
                 "input_feed": input_feed,
             },
         )
