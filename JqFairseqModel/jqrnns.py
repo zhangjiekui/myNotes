@@ -4,9 +4,10 @@
 # Date: 2020/12/17 上午7:45
 # Project: fairseq_code_analysis
 # IDE:PyCharm
-from typing import Dict, List, Optional, Tuple
+
 
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from fairseq import utils
@@ -19,17 +20,16 @@ from fairseq.models import (
     register_model_architecture,
 )
 from fairseq.models.lstm import Linear, AttentionLayer
-
 from fairseq.tasks import FairseqTask, LegacyFairseqTask
-
 from fairseq.modules import AdaptiveSoftmax, FairseqDropout
-from torch import Tensor
+
 from argparse import ArgumentParser, Namespace
-from typing import Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
+import logging
 
 DEFAULT_MAX_SOURCE_POSITIONS = 1e5
 DEFAULT_MAX_TARGET_POSITIONS = 1e5
-
+logger = logging.getLogger(__name__)
 
 # todo
 def JqEmbedding(num_embeddings, embedding_dim, padding_idx):
@@ -49,12 +49,13 @@ class RnnsEncoderDecoderModel(FairseqEncoderDecoderModel):
         """Add model-specific arguments to the parser."""
         # fmt: off
         # 增加默认参数值
-        rnn_type = None  # or gru | lstm
         embed_dim = 512
         hidden_size = embed_dim * 2
         layers = 2
-        parser.add_argument('--rnn_type', type=str, default=rnn_type, metavar='STR',
-                            help='指定RNN的类型[ rnn | gru | lstm]，默认为 rnn')
+
+        # 在@register_model_architecture中初始化！
+            ## rnn_type = None  # or gru | lstm
+            ## parser.add_argument('--rnn_type', type=str, default=rnn_type, metavar='STR', help='指定RNN的类型[ rnn | gru | lstm]，默认为 rnn')
         # encoder 参数
         parser.add_argument('--dropout', type=float, default=0.1, metavar='D', help='dropout probability')
         parser.add_argument('--encoder-embed-dim', type=int, default=embed_dim, metavar='N',
@@ -188,8 +189,7 @@ class RnnsEncoderDecoderModel(FairseqEncoderDecoderModel):
                 else None
             ),
             max_target_positions=max_target_positions,
-            residuals=False,
-
+            residuals=True, #todo
         )
         return cls(encoder, decoder)
 
@@ -212,6 +212,7 @@ def get_rnn_cell(rnn_type: Union[str, Namespace]):
         if isinstance(rnn_type, Namespace):
             rnn_type = rnn_type.rnn_type
         rnn_type = rnn_type.lower().strip()
+        logger.info("In get_rnn_cell: " + rnn_type)
         if rnn_type == "gru":
             JQRNN = nn.GRU
             JQRNNCell = nn.GRUCell
@@ -261,6 +262,7 @@ class RNNEncoder(FairseqEncoder):
     ):
         super().__init__(dictionary)
         self.rnn_type = rnn_type.rnn_type if isinstance(rnn_type, Namespace) else rnn_type
+        self.is_lstm = True if self.rnn_type=='lstm' else False # 方便后面做判断，以便处理lstm的 cell值
         self.num_layers = num_layers
         self.dropout_in_module = FairseqDropout(
             dropout_in, module_name=self.__class__.__name__
@@ -271,7 +273,6 @@ class RNNEncoder(FairseqEncoder):
         self.bidirectional = bidirectional
         self.hidden_size = hidden_size
         self.max_source_positions = max_source_positions
-
         num_embeddings = len(dictionary)
         self.padding_idx = padding_idx if padding_idx is not None else dictionary.pad()
         if pretrained_embed is None:
@@ -339,8 +340,9 @@ class RNNEncoder(FairseqEncoder):
         else:
             state_size = self.num_layers, bsz, self.hidden_size
         h0 = x.new_zeros(*state_size)
-        c0 = x.new_zeros(*state_size)
-        if self.rnn_type == 'lstm':
+        c0 = x.new_zeros(*state_size) if self.is_lstm else None
+
+        if self.is_lstm:
             packed_outs, (final_hiddens, final_cells) = self.rnn(packed_x, (h0, c0))
         else:
             packed_outs, final_hiddens = self.rnn(packed_x, h0)
@@ -355,7 +357,7 @@ class RNNEncoder(FairseqEncoder):
 
         if self.bidirectional:
             final_hiddens = self.combine_bidir(final_hiddens, bsz)
-            if self.rnn_type == 'lstm':
+            if self.is_lstm: # 必须缩进，只有在bidirectional的情况下需要这个合并处理
                 final_cells = self.combine_bidir(final_cells, bsz)
 
         encoder_padding_mask = src_tokens.eq(self.padding_idx).t()
@@ -413,6 +415,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
     ):
         super().__init__(dictionary)
         self.rnn_type = rnn_type.rnn_type if isinstance(rnn_type, Namespace) else rnn_type
+        self.is_lstm = True if self.rnn_type == 'lstm' else False  # 方便后面做判断，以便处理lstm的 cell值
         self.dropout_in_module = FairseqDropout(
             dropout_in, module_name=self.__class__.__name__
         )
@@ -437,7 +440,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
         self.encoder_output_units = encoder_output_units
         if encoder_output_units != hidden_size and encoder_output_units != 0:
             self.encoder_hidden_proj = Linear(encoder_output_units, hidden_size)
-            self.encoder_cell_proj = Linear(encoder_output_units, hidden_size)
+            self.encoder_cell_proj = Linear(encoder_output_units, hidden_size) if self.is_lstm else None
         else:
             self.encoder_hidden_proj = self.encoder_cell_proj = None
 
@@ -450,9 +453,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
         self.layers = nn.ModuleList(
             [
                 JQRNNCell(
-                    input_size=input_feed_size + embed_dim
-                    if layer == 0
-                    else hidden_size,
+                    input_size=input_feed_size + embed_dim if layer == 0 else hidden_size,
                     hidden_size=hidden_size,
                 )
                 for layer in range(num_layers)
@@ -460,7 +461,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
         )
 
         if attention:
-            # TODO make bias configurable
+            # TODO make bias configurable: Done
             self.attention = AttentionLayer(
                 hidden_size, encoder_output_units, hidden_size, bias=attention_bias
             )
@@ -536,18 +537,18 @@ class RNNDecoder(FairseqIncrementalDecoder):
         elif encoder_out is not None:
             # setup recurrent cells
             prev_hiddens = [encoder_hiddens[i] for i in range(self.num_layers)]
-            if self.rnn_type=='lstm':
+            if self.is_lstm:
                 prev_cells = [encoder_cells[i] for i in range(self.num_layers)]
             if self.encoder_hidden_proj is not None:
                 prev_hiddens = [self.encoder_hidden_proj(y) for y in prev_hiddens]
-                if self.rnn_type == 'lstm':
+                if self.is_lstm:
                     prev_cells = [self.encoder_cell_proj(y) for y in prev_cells]
             input_feed = x.new_zeros(bsz, self.hidden_size)
         else:
             # setup zero cells, since there is no encoder
             zero_state = x.new_zeros(bsz, self.hidden_size)
             prev_hiddens = [zero_state for i in range(self.num_layers)]
-            prev_cells = [zero_state for i in range(self.num_layers)]
+            prev_cells = [zero_state for i in range(self.num_layers)] if self.is_lstm else None
             input_feed = None
 
         assert (
@@ -567,7 +568,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
             for i, rnn in enumerate(self.layers):
                 # recurrent cell
 
-                if self.rnn_type == 'lstm':
+                if self.is_lstm:
                     hidden, cell = rnn(input, (prev_hiddens[i], prev_cells[i]))
                 else:  # rnn,gru
                     hidden = rnn(input, prev_hiddens[i])
@@ -580,7 +581,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
 
                 # save state for next time step
                 prev_hiddens[i] = hidden
-                if self.rnn_type == 'lstm':
+                if self.is_lstm:
                     prev_cells[i] = cell
 
             # apply attention using the last layer's hidden state
@@ -602,7 +603,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
 
         # Stack all the necessary tensors together and store
         prev_hiddens_tensor = torch.stack(prev_hiddens)
-        if self.rnn_type == 'lstm':
+        if self.is_lstm:
             prev_cells_tensor = torch.stack(prev_cells)
         cache_state = torch.jit.annotate(
             Dict[str, Optional[Tensor]],
@@ -693,6 +694,8 @@ class RNNDecoder(FairseqIncrementalDecoder):
 
 @register_model_architecture("rnn", "rnn2b")
 def base_architecture(args):
+    args.rnn_type = getattr(args, "rnn_type", 'rnn')
+    logger.warning("In base_architecture: "+ args.rnn_type)
     args.dropout = getattr(args, "dropout", 0.1)
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
     args.encoder_embed_path = getattr(args, "encoder_embed_path", None)
@@ -727,10 +730,12 @@ def base_architecture(args):
 @register_model_architecture("rnn", "gru2b")
 def gru2b(args):
     args.rnn_type = getattr(args, "rnn_type", 'gru')  ## rnn_type = 'rnn'
+    logger.warning("In  gru2b(args): " + args.rnn_type)
 
 
 @register_model_architecture("rnn", "lstm2b")
 def lstm2b(args):
     args.rnn_type = getattr(args, "rnn_type", 'lstm')
+    logger.warning("In  lstm2b(args): "+ args.rnn_type)
 
 #
