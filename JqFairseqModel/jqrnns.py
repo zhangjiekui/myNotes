@@ -7,6 +7,12 @@
 
 # /home/zjk/fairseq_code_analysis/mycode/data/data-bin/tokenized.zh-en -a lstm2b --fp16 --clip-norm 1.0 --lr 0.001 --optimizer adam -s zh -t en --dropout 0.3 --max-tokens 2048 --criterion label_smoothed_cross_entropy --num-workers 8 --reset-optimizer --save-dir /home/zjk/fairseq_code_analysis/mycode/model/lstm2b --no-epoch-checkpoints --tensorboard-logdir /home/zjk/fairseq_code_analysis/mycode/model/logs
 
+# -*- coding: utf-8 -*-
+
+# Author: zjk/ZhangJieKui
+# Date: 2020/12/17 上午7:45
+# Project: fairseq_code_analysis
+# IDE:PyCharm
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -40,7 +46,7 @@ def JqEmbedding(num_embeddings, embedding_dim, padding_idx):
     return m
 
 
-@register_model('rnn')
+@register_model('rnns')
 class RnnsEncoderDecoderModel(FairseqEncoderDecoderModel):
     def __init__(self, encoder: FairseqEncoder, decoder: FairseqDecoder):
         super().__init__(encoder, decoder)
@@ -244,7 +250,7 @@ def get_rnn_cell(rnn_type: Union[str, Namespace]):
 
 
 class RNNEncoder(FairseqEncoder):
-    """LSTM encoder."""
+    """RNNs encoder."""
 
     def __init__(
             self,
@@ -262,7 +268,8 @@ class RNNEncoder(FairseqEncoder):
             max_source_positions=DEFAULT_MAX_SOURCE_POSITIONS,
     ):
         super().__init__(dictionary)
-        self.rnn_type = rnn_type.rnn_type if isinstance(rnn_type, Namespace) else rnn_type
+        rnn_type = rnn_type.rnn_type if isinstance(rnn_type, Namespace) else rnn_type
+        self.rnn_type=rnn_type.lower().strip()
         self.is_lstm = True if self.rnn_type=='lstm' else False # 方便后面做判断，以便处理lstm的 cell值
         self.num_layers = num_layers
         self.dropout_in_module = FairseqDropout(
@@ -281,7 +288,7 @@ class RNNEncoder(FairseqEncoder):
         else:
             self.embed_tokens = pretrained_embed
 
-        JQRNN, JQRNNCell = get_rnn_cell(self.rnn_type)  # 返回的是方法
+        JQRNN, _ = get_rnn_cell(self.rnn_type)  # 返回的是方法
         self.rnn = JQRNN(
             input_size=embed_dim,
             hidden_size=hidden_size,
@@ -341,13 +348,13 @@ class RNNEncoder(FairseqEncoder):
         else:
             state_size = self.num_layers, bsz, self.hidden_size
         h0 = x.new_zeros(*state_size)
-        c0 = x.new_zeros(*state_size) if self.is_lstm else None
 
         if self.is_lstm:
+            c0 = x.new_zeros(*state_size)
             packed_outs, (final_hiddens, final_cells) = self.rnn(packed_x, (h0, c0))
         else:
             packed_outs, final_hiddens = self.rnn(packed_x, h0)
-            final_cells = None
+            c0, final_cells = None, None  # 如果是gru,rnn，这两者都为空
 
         # unpack outputs and apply dropout
         x, _ = nn.utils.rnn.pad_packed_sequence(
@@ -415,7 +422,8 @@ class RNNDecoder(FairseqIncrementalDecoder):
 
     ):
         super().__init__(dictionary)
-        self.rnn_type = rnn_type.rnn_type if isinstance(rnn_type, Namespace) else rnn_type
+        rnn_type = rnn_type.rnn_type if isinstance(rnn_type, Namespace) else rnn_type
+        self.rnn_type=rnn_type.lower().strip()
         self.is_lstm = True if self.rnn_type == 'lstm' else False  # 方便后面做判断，以便处理lstm的 cell值
         self.dropout_in_module = FairseqDropout(
             dropout_in, module_name=self.__class__.__name__
@@ -449,7 +457,8 @@ class RNNDecoder(FairseqIncrementalDecoder):
         # input feeding is described in arxiv.org/abs/1508.04025
         input_feed_size = 0 if encoder_output_units == 0 else hidden_size
 
-        JQRNN, JQRNNCell = get_rnn_cell(self.rnn_type)  # 返回的是方法
+        _, JQRNNCell = get_rnn_cell(self.rnn_type)  # 返回的是方法
+        # _ JQRNN
 
         self.layers = nn.ModuleList(
             [
@@ -693,7 +702,7 @@ class RNNDecoder(FairseqIncrementalDecoder):
         self.need_attn = need_attn
 
 
-@register_model_architecture("rnn", "rnn2b")
+@register_model_architecture("rnns", "rnn2b")
 def base_architecture(args):
     args.rnn_type = getattr(args, "rnn_type", 'rnn')
     logger.warning("In base_architecture: "+ args.rnn_type)
@@ -728,13 +737,13 @@ def base_architecture(args):
     )
 
 
-@register_model_architecture("rnn", "gru2b")
+@register_model_architecture("rnns", "gru2b")
 def gru2b(args):
     args.rnn_type = getattr(args, "rnn_type", 'gru')  ## rnn_type = 'rnn'
     logger.warning("In  gru2b(args): " + args.rnn_type)
 
 
-@register_model_architecture("rnn", "lstm2b")
+@register_model_architecture("rnns", "lstm2b")
 def lstm2b(args):
     args.rnn_type = getattr(args, "rnn_type", 'lstm')
     logger.warning("In  lstm2b(args): "+ args.rnn_type)
