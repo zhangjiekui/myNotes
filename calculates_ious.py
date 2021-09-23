@@ -1,3 +1,4 @@
+import torch
 def calculates_ious(boxes_preds:torch.tensor, boxes_labels:torch.tensor, box_format="midpoint",eps=1e-6):
     '''
     计算目标检测任务时的IOU
@@ -107,3 +108,82 @@ def calculates_ious(boxes_preds:torch.tensor, boxes_labels:torch.tensor, box_for
     iou_with_adjust = inter / (union + eps)
 
     return iou_with_adjust
+
+def xywh(bboxA, bboxB):
+    """
+    This function computes the intersection over union between two
+    2-d boxes (usually bounding boxes in an image.
+    Attributes:
+        bboxA (list): defined by 4 values: [xmin, ymin, width, height].
+        bboxB (list): defined by 4 values: [xmin, ymin, width, height].
+        (Order is irrelevant).
+    Returns:
+        IOU (float): a value between 0-1 representing how much these boxes overlap.
+    """
+
+    xA, yA, wA, hA = bboxA
+    areaA = wA * hA
+    xB, yB, wB, hB = bboxB
+    areaB = wB * hB
+
+    overlap_xmin = max(xA-wA/2, xB-wB/2)
+    overlap_ymin = max(yA-hA/2, yB-wB/2)
+    overlap_xmax = min(xA + wA/2, xB + wB/2)
+    overlap_ymax = min(yA + hA/2, yB + hB/2)
+
+    W = overlap_xmax - overlap_xmin
+    H = overlap_ymax - overlap_ymin
+
+    if min(W, H) < 0:
+        return 0
+
+    intersect = W * H
+    union = areaA + areaB - intersect
+
+    return intersect / union
+
+def box_iou_xywh(box1, box2):
+    x1min, y1min = box1[0] - box1[2]/2.0, box1[1] - box1[3]/2.0
+    x1max, y1max = box1[0] + box1[2]/2.0, box1[1] + box1[3]/2.0
+    s1 = box1[2] * box1[3]
+
+    x2min, y2min = box2[0] - box2[2]/2.0, box2[1] - box2[3]/2.0
+    x2max, y2max = box2[0] + box2[2]/2.0, box2[1] + box2[3]/2.0
+    s2 = box2[2] * box2[3]
+
+    xmin = np.maximum(x1min, x2min)
+    ymin = np.maximum(y1min, y2min)
+    xmax = np.minimum(x1max, x2max)
+    ymax = np.minimum(y1max, y2max)
+    inter_h = np.maximum(ymax - ymin, 0.)
+    inter_w = np.maximum(xmax - xmin, 0.)
+    intersection = inter_h * inter_w
+
+    union = s1 + s2 - intersection
+    iou = intersection / union
+    return iou
+if __name__ == '__main__':
+    a = torch.tensor([100,50,200,100])
+    b = torch.tensor([100, 100, 200, 200])
+    c = torch.tensor([110., 100., 200., 200.])
+
+
+    a2 = torch.tensor([80,50,200,100])
+    b2 = torch.tensor([50, 100, 200, 200])
+    c2 = torch.tensor([120., 120., 220., 220.])
+
+    A = [a,b,c]
+    B = [a2,b2,c2]
+    for i in range(3):
+        for j in range(3):
+            print("1 xywh:",xywh(A[i], B[j]))
+            print("2 box_iou_xywh:",box_iou_xywh(A[i], B[j]))
+
+    print(calculates_ious(torch.stack((a,b,c), dim=0), torch.stack((a2,b2,c2), dim=0), eps=0))
+    print(calculates_ious(torch.stack((a, b), dim=0), torch.stack((a2, b2, c2), dim=0), eps=0))
+
+
+    print(calculates_ious(torch.stack((a, b, c), dim=0), torch.stack((a2, b2), dim=0), eps=0))
+    At1=torch.stack((a, b, c))
+    At2= torch.stack((a2, b2, c2))
+    print(calculates_ious(torch.stack((At1,At2), dim=0), torch.stack((At2,At1), dim=0), eps=0))
