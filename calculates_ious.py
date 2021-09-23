@@ -1,27 +1,17 @@
+
+import numpy as np
 import torch
 def calculates_ious(boxes_preds:torch.tensor, boxes_labels:torch.tensor, box_format="midpoint",eps=1e-6):
     '''
     计算目标检测任务时的IOU
     Args:
-        boxes_preds:   [batch_size, S_cells, S_cells, M ,4 ]，或者[M ,4 ]
-        boxes_labels:  [batch_size, S_cells, S_cells, N ,4 ]，或者[N ,4 ]
+        boxes_preds:   [batch_size, S_cells, S_cells, M ,4 ]，或者[M ,4 ]——【(*,M, 4)】
+        boxes_labels:  [batch_size, S_cells, S_cells, N ,4 ]，或者[N ,4 ]——【(*,N, 4)】
         box_format (str): midpoint/corners, if boxes (x,y,w,h) or (x1,y1,x2,y2)
         eps: 一个极小的数， 防止分母为0
-
-    Returns: [batch_size, S_cells, S_cells, M ,N]，或者[M ,N]
-
+    Returns: [batch_size, S_cells, S_cells, M ,N]，或者[M ,N]——【(*,M,N)】
     '''
-    """
-    Calculates intersection over union
-    Parameters:
-        boxes_preds (tensor): Predictions of Bounding Boxes (*,M, 4)
-        boxes_labels (tensor): Correct labels of Bounding Boxes (*,N, 4)
-        box_format (str): midpoint/corners, if boxes (x,y,w,h) or (x1,y1,x2,y2)
-    Returns:
-        tensor: Intersection over union for all examples
-    """
-
-
+    
     boxes_preds_shape = boxes_preds.shape
     boxes_labels_shape = boxes_labels.shape
 
