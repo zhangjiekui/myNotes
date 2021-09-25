@@ -2,17 +2,21 @@
 import numpy as np
 import torch
 
-def calculates_ious(boxes_preds:torch.tensor, boxes_labels:torch.tensor, box_format="midpoint",eps=1e-6):
+def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_format="midpoint", eps=1e-6):
+    assert (boxes_labels < 0).sum() == 0
+    # todo 小心检查：这里会改变值
     '''
     计算目标检测任务时的IOU
     Args:
-        boxes_preds:   [batch_size, S_cells, S_cells, M ,4 ]，或者[M ,4 ]——【(*,M, 4)】
-        boxes_labels:  [batch_size, S_cells, S_cells, N ,4 ]，或者[N ,4 ]——【(*,N, 4)】
+        boxes_preds(torch.tensor):   [batch_size, S_cells, S_cells, M ,4 ]，或者[M ,4 ]
+        boxes_labels(torch.tensor):  [batch_size, S_cells, S_cells, N ,4 ]，或者[N ,4 ]
         box_format (str): midpoint/corners, if boxes (x,y,w,h) or (x1,y1,x2,y2)
         eps: 一个极小的数， 防止分母为0
-    Returns: [batch_size, S_cells, S_cells, M ,N]，或者[M ,N]——【(*,M,N)】
+
+    Returns(torch.tensor): [batch_size, S_cells, S_cells, M ,N]，或者[M ,N]
+    UnitTest : yolos/yolov1/utils/utils_func_test.py
     '''
-    
+
     boxes_preds_shape = boxes_preds.shape
     boxes_labels_shape = boxes_labels.shape
 
@@ -28,18 +32,12 @@ def calculates_ious(boxes_preds:torch.tensor, boxes_labels:torch.tensor, box_for
 
     expand_size = prefix_size + (M_origin, N_origin, 2)
 
-    """
-    Calculates intersection over union
-    Parameters:
-        boxes_preds (tensor): Predictions of Bounding Boxes (*,M, 4)
-        boxes_labels (tensor): Correct labels of Bounding Boxes (*,N, 4)
-        box_format (str): midpoint/corners, if boxes (x,y,w,h) or (x1,y1,x2,y2)
-    Returns:
-        tensor: Intersection over union for all examples
-    """
+    # todo 这里使用新的tesor是防止改变值，会改变值
+    boxes_preds_new = torch.zeros_like(boxes_preds)
+    boxes_labels_new = torch.zeros_like(boxes_labels)
 
     if box_format == "midpoint":
-        # [Xc,Yc,W,H]
+        #输入为 [Xc,Yc,W,H]
         box1_x1 = boxes_preds[..., 0:1] - boxes_preds[..., 2:3] / 2
         box1_y1 = boxes_preds[..., 1:2] - boxes_preds[..., 3:4] / 2
         box1_x2 = boxes_preds[..., 0:1] + boxes_preds[..., 2:3] / 2
@@ -50,54 +48,38 @@ def calculates_ious(boxes_preds:torch.tensor, boxes_labels:torch.tensor, box_for
         box2_x2 = boxes_labels[..., 0:1] + boxes_labels[..., 2:3] / 2
         box2_y2 = boxes_labels[..., 1:2] + boxes_labels[..., 3:4] / 2
 
-        boxes_preds[...,0:1] = box1_x1
-        boxes_preds[...,1:2] = box1_y1
-        boxes_preds[...,2:3] = box1_x2
-        boxes_preds[...,3:4] = box1_y2
+        boxes_preds_new[..., 0:1] = box1_x1
+        boxes_preds_new[..., 1:2] = box1_y1
+        boxes_preds_new[..., 2:3] = box1_x2
+        boxes_preds_new[..., 3:4] = box1_y2
 
-        boxes_labels[...,0:1] = box2_x1
-        boxes_labels[...,1:2] = box2_y1
-        boxes_labels[...,2:3] = box2_x2
-        boxes_labels[...,3:4] = box2_y2
-
-        # boxes_preds_new = torch.zero_(boxes_preds)
-        # boxes_preds_new[...,0:1] = box1_x1
-        # boxes_preds_new[...,1:2] = box1_y1
-        # boxes_preds_new[...,2:3] = box1_x2
-        # boxes_preds_new[...,3:4] = box1_y2
-        #
-        # boxes_labels_new = torch.zero_(boxes_labels)
-        # boxes_labels_new[...,0:1] = box2_x1
-        # boxes_labels_new[...,1:2] = box2_y1
-        # boxes_labels_new[...,2:3] = box2_x2
-        # boxes_labels_new[...,3:4] = box2_y2
-
-    if box_format == "corners": # (x1,y1,x2,y2)
+        boxes_labels_new[..., 0:1] = box2_x1
+        boxes_labels_new[..., 1:2] = box2_y1
+        boxes_labels_new[..., 2:3] = box2_x2
+        boxes_labels_new[..., 3:4] = box2_y2
+    if box_format == "corners":  # (x1,y1,x2,y2)
         pass
-        # boxes_preds_new = boxes_preds
-        # boxes_labels_new = boxes_labels
-    # boxes_preds = boxes_preds_new[..., 2:].reshape(prefix_size+(M_origin,2))
-    boxes_preds_temp = boxes_preds[..., 2:]
+    # 使用temp变量是为了逐步展示怎么得到 boxes_preds_unsqueeze
+    # （x2，y2）
+    boxes_preds_temp = boxes_preds_new[..., 2:]
     boxes_preds_unsqueeze = boxes_preds_temp.unsqueeze(-2)
-
-    boxes_labels_temp = boxes_labels[..., 2:].reshape(prefix_size + (N_origin, 2))
+    boxes_labels_temp = boxes_labels_new[..., 2:].reshape(prefix_size + (N_origin, 2))
     boxes_labels_unsqueeze = boxes_labels_temp.unsqueeze(-3)
-
-    max_xy = torch.min(boxes_preds_unsqueeze.expand(expand_size),
-                       boxes_labels_unsqueeze.expand(expand_size))
-    min_xy = torch.max(boxes_preds[..., :2].reshape(prefix_size + (M_origin, 2)).unsqueeze(-2).expand(expand_size),
-                       boxes_labels[..., :2].reshape(prefix_size + (N_origin, 2)).unsqueeze(-3).expand(expand_size))
+    max_xy = torch.min(boxes_preds_unsqueeze.expand(expand_size),boxes_labels_unsqueeze.expand(expand_size))
+    # （x1，y1）
+    min_xy = torch.max(boxes_preds_new[..., :2].reshape(prefix_size + (M_origin, 2)).unsqueeze(-2).expand(expand_size),
+                       boxes_labels_new[..., :2].reshape(prefix_size + (N_origin, 2)).unsqueeze(-3).expand(expand_size))
 
     inter = torch.clamp((max_xy - min_xy), min=0)
     inter = inter[..., 0] * inter[..., 1]
     # 计算先验框和真实框各自的面积
-    area_a = ((boxes_preds[..., 2] - boxes_preds[..., 0]) * (boxes_preds[..., 3] - boxes_preds[..., 1])).reshape(
+    area_a = ((boxes_preds_new[..., 2] - boxes_preds_new[..., 0]) * (boxes_preds_new[..., 3] - boxes_preds_new[..., 1])).reshape(
         prefix_size + (M_origin,)).unsqueeze(-1).expand_as(inter)  # [M,N]
-    area_b = ((boxes_labels[..., 2] - boxes_labels[..., 0]) * (boxes_labels[..., 3] - boxes_labels[..., 1])).reshape(
+    area_b = ((boxes_labels_new[..., 2] - boxes_labels_new[..., 0]) * (boxes_labels_new[..., 3] - boxes_labels_new[..., 1])).reshape(
         prefix_size + (N_origin,)).unsqueeze(-2).expand_as(inter)  # [M,N]
     union = area_a + area_b - inter
     iou_with_adjust = inter / (union + eps)
-
+    assert (boxes_labels < 0).sum() == 0
     return iou_with_adjust
 
 def xywh(bboxA, bboxB):
