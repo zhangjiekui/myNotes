@@ -107,7 +107,9 @@ def draw_anchor(ax, center, length, scales, ratios, img_height, img_width, color
     bboxs = []  # 这里的边界框bbox是指的锚框
 
     for scale in scales: # 遍历尺寸情况
+        
         for ratio in ratios: # 同一尺寸下遍历不同的长宽比情况
+            print(f"    \n-------------------------scale: {scale} of {scales},ratio: {ratio} of {ratios}------------------------------")
             # 利用基本长度、尺寸与长宽比进行锚框长宽的转换
             h = length * scale * np.math.sqrt(ratio)
             w = length * scale / np.math.sqrt(ratio)
@@ -120,12 +122,12 @@ def draw_anchor(ax, center, length, scales, ratios, img_height, img_width, color
             
             bbox = [x1, y1, x2, y2]
             # print(f'    An Anchor({center[0]},{center[1]},w={int(w),int(x2-x1)},h={int(h),int(y2-y1)}): ', bbox)
-            print(f'    An Anchor({center[0]},{center[1]},w={int(w)},h={int(h)}): ', bbox)
+            print(f'         An Anchor({center[0]},{center[1]},w={int(w)},h={int(h)}): ', bbox)
             bboxs.append(bbox)  # 插入生成的anchor
 
     _index_of_s = 0
     for bbox in bboxs:
-        print(_index_of_s)
+        # print(_index_of_s)
         if _index_of_s<len(ratios):
             color=colors[0]
         else:
@@ -161,7 +163,7 @@ def draw_anchors(img):
             # center: x, y            
             y = i 
             x = j
-            print(f"num_centers{num}:center({i,j})")
+            print(f"  num_centers{num}:center({i,j})")
             draw_anchor(ax=ax, center=[x, y], 
                         length=120, scales=[0.5,1.0], ratios=[0.5,1.0, 1.5], 
                         img_height=img.shape[0], img_width=img.shape[1],
@@ -182,11 +184,13 @@ if __name__ == '__main__':
 
     # 测试边界框的转换是否成功
     _test_bbox = BoundingBox_Denote(bbox=test_bbox, mode=denote_mode)
-    print(denote_mode,_test_bbox)
+    # print(denote_mode,_test_bbox)
 
     # 测试边界框的绘制
-    # img_draw_bbox(img="/mnt/d/dockerv/megengine_practice/imgs/1.jpg",bbox=test_bbox, mode=denote_mode,if_draw_text=True)
-
+    img_draw_bbox(img="/mnt/d/dockerv/megengine_practice/imgs/1.jpg",bbox=test_bbox, mode=denote_mode,if_draw_text=True)
+    print("=====")
+    print("====="*10)    
+    print("=====")
     draw_anchors(img="/mnt/d/dockerv/megengine_practice/imgs/1.jpg")
 
 
