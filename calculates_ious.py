@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_format="midpoint", eps=1e-6):
-    assert (boxes_labels < 0).sum() == 0
+    # assert (boxes_labels < 0).sum() == 0
     # todo 小心检查：这里会改变值
     '''
     计算目标检测任务时的IOU
@@ -12,7 +12,6 @@ def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_f
         boxes_labels(torch.tensor):  [batch_size, S_cells, S_cells, N ,4 ]，或者[N ,4 ]
         box_format (str): midpoint/corners, if boxes (x,y,w,h) or (x1,y1,x2,y2)
         eps: 一个极小的数， 防止分母为0
-
     Returns(torch.tensor): [batch_size, S_cells, S_cells, M ,N]，或者[M ,N]
     UnitTest : yolos/yolov1/utils/utils_func_test.py
     '''
@@ -22,7 +21,10 @@ def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_f
 
     ndims_boxes_preds = len(boxes_preds_shape)
     ndims_boxes_labels = len(boxes_labels_shape)
-
+    if ndims_boxes_preds<ndims_boxes_labels:
+        boxes_preds = boxes_preds.unsqueeze(dim=0)
+    boxes_preds_shape = boxes_preds.shape
+    ndims_boxes_preds = len(boxes_preds_shape)
     assert ndims_boxes_preds == ndims_boxes_labels, "boxes_preds与boxes_labels的维度数必须相等"
     assert boxes_preds_shape[-1] == boxes_labels_shape[-1] == 4, "boxes_preds与boxes_labels的最后一个维度必须等于4"
 
@@ -79,7 +81,7 @@ def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_f
         prefix_size + (N_origin,)).unsqueeze(-2).expand_as(inter)  # [M,N]
     union = area_a + area_b - inter
     iou_with_adjust = inter / (union + eps)
-    assert (boxes_labels < 0).sum() == 0
+    # assert (boxes_labels < 0).sum() == 0
     return iou_with_adjust
 
 def xywh(bboxA, bboxB):
