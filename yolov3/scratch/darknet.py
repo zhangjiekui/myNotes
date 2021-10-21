@@ -421,13 +421,13 @@ if __name__ == '__main__':
     #     if block['type']=='convolutional':
     #         print(index,block.keys())
 
-    yolov3=["yolov3",r"scratch\model_configs\yolov3.cfg"]               # layer106_yolo.shape=torch.Size([1, 17328, 85])
+    yolov3=["yolov3",r"model_configs\yolov3.cfg"]               # layer106_yolo.shape=torch.Size([1, 17328, 85])
     yolov3_tiny=["yolov3-tiny",r"model_configs\yolov3-tiny.cfg"]     # layer23_yolo.shape=torch.Size([1, 2028, 85])
     # Spatial Pyramid Pooling（空间金字塔池化结构）
-    yolov3_spp=["yolov3-spp",r"scratch\model_configs\yolov3-spp.cfg"]       # layer113_yolo.shape=torch.Size([1, 17328, 85])
+    yolov3_spp=["yolov3-spp",r"model_configs\yolov3-spp.cfg"]       # layer113_yolo.shape=torch.Size([1, 17328, 85])
 
-    # for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
-    for cfg in [yolov3_tiny]:
+    for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
+    # for cfg in [yolov3_spp]:
         logger.error(f"==={cfg[0]}"*10)
         net = Darknet(cfgfile=cfg[1])
 
@@ -465,10 +465,10 @@ if __name__ == '__main__':
             assert r.shape==s.shape
             r_soft = non_max_suppression(out, conf_thres=conf_thres, nms_thres=_thres, use_soft_nms=True,soft_conf_thres=soft_conf_thres)
             print(r_soft.shape)
-        # img=x.detach().numpy()[0]
-        # img=np.transpose(img,(1,2,0))
-        # # plot_image(img,r[:,0:4])
-        # plot_image(img, s[:, 0:4])
+        img=x.detach().numpy()[0]
+        img=np.transpose(img,(1,2,0))
+        plot_image(img,r[:,0:4])
+        plot_image(img, s[:, 0:4])
 
         # r = non_max_suppression(out,nms_thres = 0.4)
         # logger.info(f'write_results finished,r.shape={r.shape}')

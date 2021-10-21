@@ -552,7 +552,7 @@ def write_results(prediction:torch.tensor, confidence:float=0.05,num_classes:int
 
 
             batch_idx = image_pred_class.new(image_pred_class.size(0), 1).fill_(idx)      #Repeat the batch_id for as many detections of the class cls in the image
-            seq = batch_idx, image_pred_class
+            seq = image_pred_class,batch_idx
 
             num_prediction_reserved_in_image += num_prediction_reserved_in_cls
             
