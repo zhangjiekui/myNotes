@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 
+
 def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_format="midpoint", eps=1e-6):
     # assert (boxes_labels < 0).sum() == 0
     # todo 小心检查：这里会改变值
@@ -35,8 +36,10 @@ def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_f
     expand_size = prefix_size + (M_origin, N_origin, 2)
 
     # todo 这里使用新的tesor是防止改变值，会改变值
-    boxes_preds_new = torch.zeros_like(boxes_preds)
-    boxes_labels_new = torch.zeros_like(boxes_labels)
+    boxes_preds_new = copy.deepcopy(boxes_preds)
+    boxes_labels_new = copy.deepcopy(boxes_labels)
+    # boxes_preds_new = torch.zeros_like(boxes_preds)
+    # boxes_labels_new = torch.zeros_like(boxes_labels)
 
     if box_format == "midpoint":
         #输入为 [Xc,Yc,W,H]
@@ -60,6 +63,8 @@ def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_f
         boxes_labels_new[..., 2:3] = box2_x2
         boxes_labels_new[..., 3:4] = box2_y2
     if box_format == "corners":  # (x1,y1,x2,y2)
+        # logger.error(f"===boxes_preds_new={boxes_preds_new}")
+        # logger.error(f"===boxes_preds_new={boxes_labels_new}")
         pass
     # 使用temp变量是为了逐步展示怎么得到 boxes_preds_unsqueeze
     # （x2，y2）
@@ -80,9 +85,12 @@ def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_f
     area_b = ((boxes_labels_new[..., 2] - boxes_labels_new[..., 0]) * (boxes_labels_new[..., 3] - boxes_labels_new[..., 1])).reshape(
         prefix_size + (N_origin,)).unsqueeze(-2).expand_as(inter)  # [M,N]
     union = area_a + area_b - inter
-    iou_with_adjust = inter / (union + eps)
-    # assert (boxes_labels < 0).sum() == 0
+    if union.min()==0:
+        union = union + eps
+    iou_with_adjust = inter / union
+    # assert (iou_with_adjust < 0).sum() == 0
     return iou_with_adjust
+
 
 def xywh(bboxA, bboxB):
     """
