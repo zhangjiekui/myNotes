@@ -1,7 +1,7 @@
 from logging import exception
 import torch
 import numpy as np
-from mylogger import logger
+from util_mylogger import logger
 import matplotlib.pyplot as plt  # 图形绘制
 import matplotlib.colors as mcolors # 颜色
 import matplotlib.patches as patches  # 添加矩形框
@@ -389,7 +389,6 @@ def draw_rectangle(bbox=[], mode="xyxy", linewidth=1, color='k', fill=False):
                              linestyle='-')
 
     return rect
-
 
 def plt_plot_bbox_on_image(img, bbox=[10, 20, 90, 100], mode = "xyxy",wh_net_output=(608,608), offset=15, if_draw_text=False,fill=True, color='r'):
     '''将边界框绘制到实际图片上

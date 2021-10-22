@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F 
 # from torch.autograd import Variable
 import numpy as np
-from mylogger import logger
+from util_mylogger import logger
 from util import predict_transform,write_results,non_max_suppression,plot_image
 
 class EmptyLayer(nn.Module):
@@ -432,8 +432,8 @@ if __name__ == '__main__':
     # Spatial Pyramid Pooling（空间金字塔池化结构）
     yolov3_spp=["yolov3-spp",r"model_configs\yolov3-spp.cfg"]       # layer113_yolo.shape=torch.Size([1, 17328, 85])
 
-    # for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
-    for cfg in [yolov3_spp]:
+    for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
+    # for cfg in [yolov3_spp]:
         logger.error(f"==={cfg[0]}"*10)
         net = Darknet(cfgfile=cfg[1])
 
@@ -459,37 +459,50 @@ if __name__ == '__main__':
 
         r=None
         s=None
+
         for _thres in nms_thres:
             r = non_max_suppression(out, conf_thres=conf_thres,nms_thres=_thres,use_soft_nms=False)
-            print(r.shape)
-            # logger.error(f'non_max_suppression:_thres={_thres},r.shape={r.shape}')
-            logger.error(f'non_max_suppression:_thres={_thres}')
-            s = write_results(_out, confidence=conf_thres,nms_conf=_thres)
-            logger.error(f'write_results      :_thres={_thres}')
+            logger.error(f'non_max_suppression_nms:_thres={_thres}')
+            r_soft = non_max_suppression(out, conf_thres=conf_thres, nms_thres=_thres, use_soft_nms=True,
+                                         soft_conf_thres=soft_conf_thres)
+            logger.error(f'non_max_suppression_nms_soft:_thres={_thres}')
             logger.error(f'########################################################')
-            print(r.shape,s.shape)
-            assert r.shape==s.shape
-            r_soft = non_max_suppression(out, conf_thres=conf_thres, nms_thres=_thres, use_soft_nms=True,soft_conf_thres=soft_conf_thres)
-            print(r_soft.shape)
-        img=x.detach().numpy()[0]
-        img=np.transpose(img,(1,2,0))
+            print(r.shape,r_soft.shape)
+            assert r.shape==r_soft.shape
+
+            img = x.detach().numpy()[0]
+            img = np.transpose(img, (1, 2, 0))
+            plt_plot_bbox_on_image(img, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
+            plt_plot_bbox_on_image(img, bbox=r_soft, mode="xyxy", if_draw_text=True, fill=False,wh_net_output=(width, height))
+            plt_plot_bbox_on_image(img_path, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False,
+                                   wh_net_output=(width, height))
+
+            bboxes = [99.1971, 241.6673, 253.0763, 564.6666]
+            plt_plot_bbox_on_image(img_path, bbox=bboxes, mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
+            bboxes = [[ 99.1971, 241.6673, 253.0763, 564.6666],
+            [ 84.2191, 123.8694, 469.2323, 475.5970],
+            [373.5568,  83.2922, 544.0130, 181.9760]]
+            plt_plot_bbox_on_image(img_path, bbox=r_soft, mode="xyxy", if_draw_text=True, fill=False,
+                                   wh_net_output=(width, height))
+
+
+
         # plot_image(img,r[:,0:4])
         # plot_image(img, r_soft[:, 0:4])
         # plot_image(img, s[:, 0:4])
-        plt_plot_bbox_on_image(img, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
-        plt_plot_bbox_on_image(img, bbox=r_soft, mode="xyxy", if_draw_text=True, fill=False,wh_net_output=(width, height))
+
         # xyxy
-        print("原始xyxy：",r_soft)
+        # print("原始xyxy：",r_soft)
         # img_draw_bbox(img_path, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
         # img_draw_bbox(img, bbox=r_soft[:, 0:4], mode="xyxy",if_draw_text=True,fill=False,wh_net_output=(width,height))
         # bboxes = [[ 99.1971, 241.6673, 253.0763, 564.6666],
         # [ 84.2191, 123.8694, 469.2323, 475.5970],
         # [373.5568,  83.2922, 544.0130, 181.9760]]
-        bboxes = [ 99.1971, 241.6673, 253.0763, 564.6666]
+        # bboxes = [ 99.1971, 241.6673, 253.0763, 564.6666]
         # img_draw_bbox(img, bbox=bboxes, mode="xyxy", if_draw_text=True, fill=False,wh_net_output=(width, height))
         # img_draw_bbox(img_path, bbox=bboxes, mode="xyxy", if_draw_text=True, fill=False,
         #               wh_net_output=(width, height))
-        print("")
+        print("end")
 
 
 
