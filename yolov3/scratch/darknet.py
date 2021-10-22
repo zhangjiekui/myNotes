@@ -1,5 +1,6 @@
 import os
 import cv2
+import matplotlib.image as image  # 读取图像数据
 import torch
 import torch.nn as nn
 import torch.nn.functional as F 
@@ -401,7 +402,7 @@ class Darknet(nn.Module):
 def get_test_input(img_path=r"D:\dockerv\yolov3\dog-cycle-car.png",resized_shape=(608,608)):
     img = cv2.imread(img_path)
     img = cv2.resize(img, resized_shape)          #Resize to the input dimension
-    img_ =  img[:,:,::-1].transpose((2,0,1))  # BGR -> RGB | H X W C -> C X H X W 
+    img_ =  img[:,:,::-1].transpose((2,0,1))  # BGR -> RGB | H X W X C -> C X H X W
     img_ = img_[np.newaxis,:,:,:]/255.0       #Add a channel at 0 (for batch) | Normalise
     img_ = torch.from_numpy(img_).float()     #Convert to float
     # img_ = torch.autograd.Variable(img_)                     # Convert to Variable
@@ -421,13 +422,18 @@ if __name__ == '__main__':
     #     if block['type']=='convolutional':
     #         print(index,block.keys())
 
+    # from _util_plot import img_draw_bbox
+    from util import plt_plot_bbox_on_image
+    img_path = r'D:\dockerv\yolov3\dog-cycle-car.png'
+
+
     yolov3=["yolov3",r"model_configs\yolov3.cfg"]               # layer106_yolo.shape=torch.Size([1, 17328, 85])
     yolov3_tiny=["yolov3-tiny",r"model_configs\yolov3-tiny.cfg"]     # layer23_yolo.shape=torch.Size([1, 2028, 85])
     # Spatial Pyramid Pooling（空间金字塔池化结构）
     yolov3_spp=["yolov3-spp",r"model_configs\yolov3-spp.cfg"]       # layer113_yolo.shape=torch.Size([1, 17328, 85])
 
-    for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
-    # for cfg in [yolov3_spp]:
+    # for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
+    for cfg in [yolov3_spp]:
         logger.error(f"==={cfg[0]}"*10)
         net = Darknet(cfgfile=cfg[1])
 
@@ -436,8 +442,8 @@ if __name__ == '__main__':
         net.load_weights(weightfile)
         width = int(net.net_info['width'])
         height = int(net.net_info['height'])
-        
-        x = get_test_input(resized_shape=(width,height))
+
+        x = get_test_input(img_path=img_path,resized_shape=(width, height))
 
 
         # x = torch.randn(2,3,width,height)
@@ -467,10 +473,31 @@ if __name__ == '__main__':
             print(r_soft.shape)
         img=x.detach().numpy()[0]
         img=np.transpose(img,(1,2,0))
-        plot_image(img,r[:,0:4])
-        plot_image(img, s[:, 0:4])
+        # plot_image(img,r[:,0:4])
+        # plot_image(img, r_soft[:, 0:4])
+        # plot_image(img, s[:, 0:4])
+        plt_plot_bbox_on_image(img, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
+        plt_plot_bbox_on_image(img, bbox=r_soft, mode="xyxy", if_draw_text=True, fill=False,wh_net_output=(width, height))
+        # xyxy
+        print("原始xyxy：",r_soft)
+        # img_draw_bbox(img_path, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
+        # img_draw_bbox(img, bbox=r_soft[:, 0:4], mode="xyxy",if_draw_text=True,fill=False,wh_net_output=(width,height))
+        # bboxes = [[ 99.1971, 241.6673, 253.0763, 564.6666],
+        # [ 84.2191, 123.8694, 469.2323, 475.5970],
+        # [373.5568,  83.2922, 544.0130, 181.9760]]
+        bboxes = [ 99.1971, 241.6673, 253.0763, 564.6666]
+        # img_draw_bbox(img, bbox=bboxes, mode="xyxy", if_draw_text=True, fill=False,wh_net_output=(width, height))
+        # img_draw_bbox(img_path, bbox=bboxes, mode="xyxy", if_draw_text=True, fill=False,
+        #               wh_net_output=(width, height))
+        print("")
 
-        # r = non_max_suppression(out,nms_thres = 0.4)
+
+
+    # 测试边界框的绘制
+
+
+
+    # r = non_max_suppression(out,nms_thres = 0.4)
         # logger.info(f'write_results finished,r.shape={r.shape}')
 
 

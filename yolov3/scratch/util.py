@@ -2,50 +2,14 @@ from logging import exception
 import torch
 import numpy as np
 from mylogger import logger
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import matplotlib.pyplot as plt  # 图形绘制
+import matplotlib.colors as mcolors # 颜色
+import matplotlib.patches as patches  # 添加矩形框
+import matplotlib.image as image  # 读取图像数据
+from model_configs.classes_names_for_dataset import COCO_CLASSES
 import copy
 
 np.set_printoptions(precision=3, suppress=True)
-
-
-def plot_image(image, boxes):
-    """Plots predicted bounding boxes on the image"""
-    im = np.array(image)
-    height, width, _ = im.shape
-
-    # Create figure and axes
-    fig, ax = plt.subplots(1)
-    # Display the image
-    ax.imshow(im)
-
-    # box[0] is x midpoint, box[2] is width
-    # box[1] is y midpoint, box[3] is height
-
-    # Create a Rectangle potch
-    for box in boxes:
-        # box = box[2:]
-        assert len(box) == 4, "Got more values than in x, y, w, h, in a box!"
-        # upper_left_x = box[0] - box[2] / 2
-        # upper_left_y = box[1] - box[3] / 2
-        upper_left_x = box[0]
-        upper_left_y = box[1]
-        w_box = box[2]-upper_left_x
-        h_box = box[3]-upper_left_y
-
-        width = height =1
-        rect = patches.Rectangle(
-            (upper_left_x * width, upper_left_y * height),
-            w_box * width,
-            h_box * height,
-            linewidth=1,
-            edgecolor="r",
-            facecolor="none",
-        )
-        # Add the patch to the Axes
-        ax.add_patch(rect)
-
-    plt.show()
 
 def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = torch.cuda.is_available()):
     
@@ -189,22 +153,6 @@ def calculates_ious(boxes_preds: torch.tensor, boxes_labels: torch.tensor, box_f
     iou_with_adjust = inter / union
     # assert (iou_with_adjust < 0).sum() == 0
     return iou_with_adjust
-
-def get_test_ious():
-    a = torch.tensor([100, 50, 200, 100])
-    b = torch.tensor([100, 100, 200, 200])
-    c = torch.tensor([110., 100., 200., 200.])
-
-    a2 = torch.tensor([80, 50, 200, 100])
-    b2 = torch.tensor([50, 100, 200, 200])
-    c2 = torch.tensor([120., 120., 220., 220.])
-
-    At1=torch.stack((a, b, c))
-    At2= torch.stack((a2, b2, c2))
-
-    ious = calculates_ious(a,At2)
-    ious2 = bbox_iou(a.unsqueeze(0),At2)
-    return ious,ious2
 
 def non_max_suppression(predictions_logits:torch.tensor, num_classes:int=80, conf_thres:float=0.4, nms_thres:float = 0.4,
                         use_soft_nms=True,soft_nms_sigma=0.5,soft_conf_thres=0.4):
@@ -358,12 +306,167 @@ def non_max_suppression(predictions_logits:torch.tensor, num_classes:int=80, con
     # 其中8位的含义是4个坐标(x,y,x,y),1个obj_conf,1个cls_conf,1个类别id,1个idx_batch
     return output #[Tensor(num_boxes,8) or None]
     # 函数在上面还有一个分支，可能会返回None
+def xyxy_xywh(bbox=[], mode='xyxy'):  # xyxy or xywh
+    '''边界框的表示形式的转换
+        bbox: list,包含(x1, y1, x2, y2)四个位置信息的数据格式
+              np.array, torch.tensor
+        mode: 边界框数据表示的模式
+             True:  to (x1,y1,x2,y2) #左上顶点 (x1,y1) ，右下顶点 (x2,y2 )
+             False: to (x,y,w,h)     #  中心点 (x0,y0)， w是边界框的宽， h是边界框的长(高)
+        return: 返回形式转换后的边界框数据
+    '''
+    assert mode in ["xyxy", "xywh"],f'坐标格式mode参数当前值为“{mode}”,请确认是"xyxy", "xywh"两者之一！'
+
+    if isinstance(bbox, list):
+        bbox = np.asarray(bbox)
+    if isinstance(bbox, torch.Tensor):
+        bbox = bbox.cpu().numpy()
+    # denote_bbox = copy.deepcopy(bbox)  # 转换表示的边界框
+
+    if mode == "xyxy":  # 保持原形式
+        xyxy_bbox = bbox
+
+        xywh_bbox = copy.deepcopy(bbox)
+        center_x = (bbox[...,0] + bbox[...,2]) / 2.0
+        center_y = (bbox[...,1] + bbox[...,3]) / 2.0
+        w = bbox[...,2] - bbox[...,0]
+        h = bbox[...,3] - bbox[...,1]
+        xywh_bbox[..., 0] = center_x
+        xywh_bbox[..., 1] = center_y
+        xywh_bbox[..., 2] = w
+        xywh_bbox[..., 3] = h
+
+        return {"xyxy_bbox":xyxy_bbox,"xywh_bbox":xywh_bbox}
 
 
+    else:  # 转换为(center_x, center_y, w, h)
+        xywh_bbox = bbox
+
+        xyxy_bbox = copy.deepcopy(bbox)
+        x0 = bbox[...,0] - bbox[...,2] / 2.0
+        y0 = bbox[...,1] - bbox[...,3] / 2.0
+        x1 = bbox[...,0] + bbox[...,2] / 2.0
+        y1 = bbox[...,1] + bbox[...,3] / 2.0
+        xyxy_bbox[..., 0] = x0
+        xyxy_bbox[..., 1] = y0
+        xyxy_bbox[..., 2] = x1
+        xyxy_bbox[..., 3] = y1
+
+        return {"xyxy_bbox": xyxy_bbox, "xywh_bbox": xywh_bbox}
+
+def draw_rectangle(bbox=[], mode="xyxy", linewidth=1, color='k', fill=False):
+    '''绘制矩形框
+        bbox：边界框数据（默认框数据不超过图片边界）
+        mode: 边界框数据表示的模式
+             True:  to (x1,y1,x2,y2)
+             False: to (x,y,w,h)
+        color: 边框颜色
+        fill: 是否填充
+    '''
+    assert mode in ["xyxy", "xywh"],f'坐标格式mode参数当前值为“{mode}”,请确认是"xyxy", "xywh"两者之一！'
+
+    # plt绘制矩形时需要的是[(x0,y0),w,h]
+    # 所以以下两种情况，都只需要转换其中的两个值
+    if mode == "xyxy":  # to [(x0,y0),w,h]
+        x = bbox[0]
+        y = bbox[1]
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
+    else:  # to [(x0,y0),w,h]
+        x = bbox[0] - bbox[2] / 2.0
+        y = bbox[1] - bbox[3] / 2.0
+        w = bbox[2]
+        h = bbox[3]
+
+    # 绘制边界框
+    # patches.Rectangle需要传入左上角坐标、矩形区域的宽度、高度等参数
+    # 获取绘制好的图形的返回句柄——用于添加到当前的图像窗口中
+    rect = patches.Rectangle((x, y), w, h,
+                             linewidth=linewidth,  # 线条宽度
+                             edgecolor=color,  # 线条颜色
+                             facecolor='y',  #
+                             fill=fill,
+                             linestyle='-')
+
+    return rect
+
+
+def plt_plot_bbox_on_image(img, bbox=[10, 20, 90, 100], mode = "xyxy",wh_net_output=(608,608), offset=15, if_draw_text=False,fill=True, color='r'):
+    '''将边界框绘制到实际图片上
+        bbox: 需要绘制的边界框
+        mode: 边界框数据表示的转换模式
+             "xyxy":  输入是 (X1,Y1,X2,Y2)
+             "xywh":  输入是 (Xc,Yc,W,H)
+    '''
+    assert mode in ["xyxy", "xywh"],f'坐标格式mode参数当前值为“{mode}”,请确认是"xyxy", "xywh"两者之一！'
+    COLORS_LIST = list(mcolors.CSS4_COLORS.values())
+    # COLORS_LIST = list(mcolors.BASE_COLORS.values())
+    # COLORS_LIST = list(mcolors.TABLEAU_COLORS.values())
+
+    # 图片路径
+    if isinstance(img, str):
+        img = image.imread(img)  # 读取图片数据,返回值为(H, W, 3) for RGB images
+    if isinstance(img, str):
+        if img.size(0) == 3:
+            img = img.transpose((1, 2, 0)) # (H, W, 3)
+    # 输入的bbox格式转换为numpy array
+    if isinstance(bbox, list):
+        bbox = np.asarray(bbox)
+    if isinstance(bbox, torch.Tensor):
+        bbox = bbox.cpu().numpy()
+    bbox1 = copy.deepcopy(bbox)  # 转换表示的边界框
+
+    # 计算图像缩放scale， 然后进行大小缩放
+    img_height , img_width = img.shape[0:2] # 注意宽高的位置！ (H, W, 3)
+    width_scale = img_width/wh_net_output[0]
+    height_scale = img_height / wh_net_output[1]
+    bbox1[..., 0] = bbox1[..., 0] * width_scale
+    bbox1[..., 2] = bbox1[..., 2] * width_scale
+    bbox1[..., 1] = bbox1[..., 1] * height_scale
+    bbox1[..., 3] = bbox1[..., 3] * height_scale
+
+    fig = plt.figure(figsize=(img_width/100, img_height/100))
+    ax = plt.gca()  # 窗口句柄
+    plt.imshow(img)  # 展示图片
+
+    if len(bbox1.shape)==1:
+        bbox1 = [bbox1]
+    # 绘制表示模式2的边界框
+    for i in range(len(bbox1)):
+        _bbox = bbox1[i]
+
+        objconf_string = None
+        classname_clsid_clsconf_string = None
+        if len(_bbox) == 8:
+            obj_conf, cls_conf, cls_id, batch_id = _bbox[4:8]
+            cls_id = int(cls_id)
+            objconf_string = f"obj_conf:{obj_conf:.2f}"
+            classname_clsid_clsconf_string = f"{COCO_CLASSES[cls_id]}({cls_id}):{cls_conf:.2f}"
+            color_id = cls_id % len(COLORS_LIST)
+            color = COLORS_LIST[color_id]
+
+        rect1 = draw_rectangle(bbox=_bbox, mode=mode, color=color,fill=fill)
+        ax.add_patch(rect1)  # 将矩形添加到当前的图片上
+        if if_draw_text:
+            plt.text(int(_bbox[0] + offset), int(_bbox[1] +     offset * 1.5), s=f"({int(_bbox[0])},{int(_bbox[1])})", color=color)
+            plt.text(int(_bbox[2] - 6 * offset), int(_bbox[3] - offset / 2), s=f"({int(_bbox[2])},{int(_bbox[3])})", color=color)
+
+            Xc = int(_bbox[0]+(_bbox[2] - _bbox[0]) / 2)
+            Yc = int(_bbox[1]+(_bbox[3] - _bbox[1]) / 2)
+            Xoffset = int(_bbox[0] + 2*offset)
+
+            plt.text(Xc-4*offset, Yc-offset/2, s=objconf_string, color=color)
+            plt.text(Xc-4*offset, Yc+offset / 2, s=classname_clsid_clsconf_string, color=color)
+            # plt.text(Xoffset, Yc-offset, s=objconf_string, color=color)
+            # plt.text(Xoffset, Yc+offset, s=classname_clsid_clsconf_string, color=color)
+
+
+    plt.show()
+#############################################################
+###下面是暂放的方法
 def bbox_iou(box1, box2):
     """
     Returns the IoU of two bounding boxes
-
 
     """
     # Get the coordinates of bounding boxes
@@ -577,8 +680,66 @@ def write_results(prediction:torch.tensor, confidence:float=0.05,num_classes:int
     except:
         return 0
 
+def plot_image(image, boxes):
+    """Plots predicted bounding boxes on the image"""
+    im = np.array(image)
+    height, width, _ = im.shape
+
+    # Create figure and axes
+    fig, ax = plt.subplots(1)
+    # Display the image
+    ax.imshow(im)
+
+    # box[0] is x midpoint, box[2] is width
+    # box[1] is y midpoint, box[3] is height
+
+    # Create a Rectangle potch
+    for box in boxes:
+        # box = box[2:]
+        assert len(box) == 4, "Got more values than in x, y, w, h, in a box!"
+        # upper_left_x = box[0] - box[2] / 2
+        # upper_left_y = box[1] - box[3] / 2
+        upper_left_x = box[0]
+        upper_left_y = box[1]
+        w_box = box[2]-upper_left_x
+        h_box = box[3]-upper_left_y
+
+        width = height =1
+        rect = patches.Rectangle(
+            (upper_left_x * width, upper_left_y * height),
+            w_box * width,
+            h_box * height,
+            linewidth=1,
+            edgecolor="r",
+            facecolor="none",
+        )
+        # Add the patch to the Axes
+        ax.add_patch(rect)
+
+    plt.show()
+
+def get_test_ious():
+    a = torch.tensor([100, 50, 200, 100])
+    b = torch.tensor([100, 100, 200, 200])
+    c = torch.tensor([110., 100., 200., 200.])
+
+    a2 = torch.tensor([80, 50, 200, 100])
+    b2 = torch.tensor([50, 100, 200, 200])
+    c2 = torch.tensor([120., 120., 220., 220.])
+
+    At1=torch.stack((a, b, c))
+    At2= torch.stack((a2, b2, c2))
+
+    ious = calculates_ious(a,At2)
+    ious2 = bbox_iou(a.unsqueeze(0),At2)
+    return ious,ious2
+
+###上面是暂放的方法
+#############################################################
 
 if __name__ == '__main__':
+    r1 = xyxy_xywh([0,0,100,100])
+    r2 = xyxy_xywh([0, 0, 100, 100],mode='xywh')
     # get_test_ious()
     # print(get_test_ious())
     # a = torch.tensor([100, 50, 200, 100])
