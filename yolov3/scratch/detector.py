@@ -42,11 +42,16 @@ def prep_image(original_img, img_dims_to_be_resized):
     original_img = torch.from_numpy(original_img).float().div(255.0).unsqueeze(0)
     return original_img
 
+i=1
 def write(bbox:torch.Tensor, original_imgs_array_list: list,colors = COLORS_LIST):
     # print(bbox)
+    global i
     c1 = tuple(bbox[0:2].int().numpy())
     c2 = tuple(bbox[2:4].int().numpy())
     img = original_imgs_array_list[int(bbox[-1])]
+    before = [v.sum() for k,v in original_imgs_array_list.items()]
+    before_sum = sum(before)
+    print(f"-----------执行次数{i}--内存id{id(img)}-变换前image{int(bbox[-1])}.sum()={img.sum()},总和{before_sum}")
     cls = int(bbox[-2])
     # color = COLORS_LIST[cls]
     color = colors[cls]
@@ -56,6 +61,10 @@ def write(bbox:torch.Tensor, original_imgs_array_list: list,colors = COLORS_LIST
     c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
     cv2.rectangle(img, c1, c2, color, -1)
     cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1)
+    after = [v.sum() for k,v in original_imgs_array_list.items()]
+    after_sum = sum(after)
+    print(f"-----------执行次数{i}--内存id{id(img)}-变换后image{int(bbox[-1])}.sum()={img.sum()},总和{after_sum}")
+    i+=1
     return img
 
 def letterbox_revert_back(im_original_dim_list:list, predictions_tensor:torch.Tensor,im_resized_dim_for_net_input=608):
@@ -77,10 +86,8 @@ def cv2_draw_bbox_on_image(imgs:list,bboxes:torch.Tensor,im_path_list:list,desti
     imgs:list  带绘制的img列表
     bboxes:torch.Tensor 待绘制的bboxes
     """
-    list(map(lambda bbox: write(bbox, imgs), bboxes))
-    # list(map(lambda x: write(x,bboxes), imgs))
+    list(map(lambda bbox: write(bbox, imgs), bboxes)) #执行后会改变imgs里img_array的值，详解write函数里的print跟踪
     det_names = pd.Series(im_path_list).apply(lambda x: "{}{}det_{}".format(destination, os.sep, x.split(os.sep)[-1]))
-    # return list(map(cv2.imwrite, det_names, _loaded_ims))
     return list(map(cv2.imwrite, det_names, list(imgs.values())))
 
 # for cfg in [yolov3_tiny]:
@@ -134,6 +141,20 @@ for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
     im_original_dim_list = torch.FloatTensor(im_original_dim_list)
     imgs_dims_to_be_resized = [width]*len(imlist)
 
+    """
+        def fun(x,y=0):
+            print("传入的参数",x,y)
+            return x+y
+        for each in map(fun, [1,2],[3,4]):
+            print("求和为：",each)
+            print("----------")
+        print('========================================')
+        print(list(zip([1,2],[3,4])))
+        for each in map(fun, *zip([1,2],[3,4])):
+            print("求和为：",each)
+            print("----------")
+    """
+    # 上面是对map(func,参数1,参数2) 的示例
     im_batches_list = list(map(prep_image, loaded_ims, imgs_dims_to_be_resized))
 
     if CUDA:
