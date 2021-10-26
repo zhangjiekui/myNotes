@@ -427,10 +427,10 @@ if __name__ == '__main__':
     img_path = r'D:\dockerv\yolov3\dog-cycle-car.png'
 
 
-    yolov3=["yolov3",r"model_configs\yolov3.cfg"]               # layer106_yolo.shape=torch.Size([1, 17328, 85])
-    yolov3_tiny=["yolov3-tiny",r"model_configs\yolov3-tiny.cfg"]     # layer23_yolo.shape=torch.Size([1, 2028, 85])
+    yolov3=["yolov3",r"D:\dockerv\yolov3\scratch\model_configs\yolov3.cfg"]               # layer106_yolo.shape=torch.Size([1, 17328, 85])
+    yolov3_tiny=["yolov3-tiny",r"D:\dockerv\yolov3\scratch\model_configs\yolov3-tiny.cfg"]     # layer23_yolo.shape=torch.Size([1, 2028, 85])
     # Spatial Pyramid Pooling（空间金字塔池化结构）
-    yolov3_spp=["yolov3-spp",r"model_configs\yolov3-spp.cfg"]       # layer113_yolo.shape=torch.Size([1, 17328, 85])
+    yolov3_spp=["yolov3-spp",r"D:\dockerv\yolov3\scratch\model_configs\yolov3-spp.cfg"]       # layer113_yolo.shape=torch.Size([1, 17328, 85])
 
     for cfg in [yolov3_tiny,yolov3,yolov3_spp]:
     # for cfg in [yolov3_spp]:
@@ -472,17 +472,23 @@ if __name__ == '__main__':
 
             img = x.detach().numpy()[0]
             img = np.transpose(img, (1, 2, 0))
-            plt_plot_bbox_on_image(img, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
-            plt_plot_bbox_on_image(img, bbox=r_soft, mode="xyxy", if_draw_text=True, fill=False,wh_net_output=(width, height))
-            plt_plot_bbox_on_image(img_path, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False,
+            plt_plot_bbox_on_image(img, bbox=r_soft[:, 0:4], mode="xyxy", if_draw_text=True, fill=False,
+                                   wh_net_output=(width, height))
+
+            plt_plot_bbox_on_image(img_path, bbox=r_soft, mode="xyxy", if_draw_text=True, fill=False,
+                                   wh_net_output=(width, height))
+
+            plt_plot_bbox_on_image(img, bbox=r[:, 0:4], mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
+
+            plt_plot_bbox_on_image(img_path, bbox=r, mode="xyxy", if_draw_text=True, fill=False,
                                    wh_net_output=(width, height))
 
             bboxes = [99.1971, 241.6673, 253.0763, 564.6666]
-            plt_plot_bbox_on_image(img_path, bbox=bboxes, mode="xyxy", if_draw_text=True, fill=False, wh_net_output=(width, height))
+            plt_plot_bbox_on_image(img_path, bbox=bboxes, mode="xyxy", if_draw_text=False, fill=False, wh_net_output=(width, height))
             bboxes = [[ 99.1971, 241.6673, 253.0763, 564.6666],
             [ 84.2191, 123.8694, 469.2323, 475.5970],
             [373.5568,  83.2922, 544.0130, 181.9760]]
-            plt_plot_bbox_on_image(img_path, bbox=r_soft, mode="xyxy", if_draw_text=True, fill=False,
+            plt_plot_bbox_on_image(img_path, bbox=bboxes, mode="xyxy", if_draw_text=False, fill=False,
                                    wh_net_output=(width, height))
 
 

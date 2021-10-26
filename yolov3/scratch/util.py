@@ -50,8 +50,8 @@ def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = torch.cu
 
     x_y_offset = torch.cat((x_offset, y_offset), 1).repeat(1,num_anchors).view(-1,2).unsqueeze(0)
 
-    prediction[:,:,:2] += x_y_offset
-
+    prediction[:,:,:2] += x_y_offset #中心点预测值的sigmoid + Cell左上角的值
+    # 下面处理宽高
     #log space transform height and the width
     anchors = torch.FloatTensor(anchors)
 
@@ -384,13 +384,15 @@ def draw_rectangle(bbox=[], mode="xyxy", linewidth=1, color='k', fill=False):
     rect = patches.Rectangle((x, y), w, h,
                              linewidth=linewidth,  # 线条宽度
                              edgecolor=color,  # 线条颜色
-                             facecolor='y',  #
+                             facecolor='w',
+                             # facecolor=color,
                              fill=fill,
+                             alpha = 0.4,
                              linestyle='-')
 
     return rect
 
-def plt_plot_bbox_on_image(img, bbox=[10, 20, 90, 100], mode = "xyxy",wh_net_output=(608,608), offset=15, if_draw_text=False,fill=True, color='r'):
+def plt_plot_bbox_on_image(img, bbox=[10, 20, 90, 100], mode = "xyxy",bbox_has_scaled=False,wh_net_output=(608,608), offset=15, if_draw_text=False,fill=True, color='r'):
     '''将边界框绘制到实际图片上
         bbox: 需要绘制的边界框
         mode: 边界框数据表示的转换模式
@@ -405,9 +407,11 @@ def plt_plot_bbox_on_image(img, bbox=[10, 20, 90, 100], mode = "xyxy",wh_net_out
     # 图片路径
     if isinstance(img, str):
         img = image.imread(img)  # 读取图片数据,返回值为(H, W, 3) for RGB images
-    if isinstance(img, str):
-        if img.size(0) == 3:
-            img = img.transpose((1, 2, 0)) # (H, W, 3)
+    if isinstance(img, (torch.Tensor,np.ndarray)):
+        if img.shape[0] == 3:
+            img = torch.permute(img,(1, 2, 0)) # (H, W, 3)
+    img_height, img_width = img.shape[0:2]  # 注意宽高的位置！ (H, W, 3)
+
     # 输入的bbox格式转换为numpy array
     if isinstance(bbox, list):
         bbox = np.asarray(bbox)
@@ -415,14 +419,17 @@ def plt_plot_bbox_on_image(img, bbox=[10, 20, 90, 100], mode = "xyxy",wh_net_out
         bbox = bbox.cpu().numpy()
     bbox1 = copy.deepcopy(bbox)  # 转换表示的边界框
 
-    # 计算图像缩放scale， 然后进行大小缩放
-    img_height , img_width = img.shape[0:2] # 注意宽高的位置！ (H, W, 3)
-    width_scale = img_width/wh_net_output[0]
-    height_scale = img_height / wh_net_output[1]
-    bbox1[..., 0] = bbox1[..., 0] * width_scale
-    bbox1[..., 2] = bbox1[..., 2] * width_scale
-    bbox1[..., 1] = bbox1[..., 1] * height_scale
-    bbox1[..., 3] = bbox1[..., 3] * height_scale
+    if bbox_has_scaled:
+        pass
+    else:
+        # 计算图像缩放scale， 然后进行大小缩放
+
+        width_scale = img_width/wh_net_output[0]
+        height_scale = img_height / wh_net_output[1]
+        bbox1[..., 0] = bbox1[..., 0] * width_scale
+        bbox1[..., 2] = bbox1[..., 2] * width_scale
+        bbox1[..., 1] = bbox1[..., 1] * height_scale
+        bbox1[..., 3] = bbox1[..., 3] * height_scale
 
     fig = plt.figure(figsize=(img_width/100, img_height/100))
     ax = plt.gca()  # 窗口句柄

@@ -73,8 +73,8 @@ def get_logger(logging_into_files=True,logging_dir=None,level="WARNING",tips=Fal
     return logger
 
 root_path = ProjectUtil.project_root_path(project_name="YOLOV3")
-logger = get_logger(logging_into_files=True,level="INFO",logging_dir=None,tips=False)
-# logger = get_logger(logging_into_files=False,level="WARNING",logging_dir=None,tips=False)
+# logger = get_logger(logging_into_files=True,level="INFO",logging_dir=None,tips=False)
+logger = get_logger(logging_into_files=False,level="WARNING",logging_dir=None,tips=False)
 
 # if __name__ == '__main__':
 #     root_path = ProjectUtil.project_root_path(project_name="YOLOV3")
